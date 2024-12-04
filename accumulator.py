@@ -7,3 +7,4 @@ class Accumulator:
         self.data = [0.0] * len(self.data)
     def __getitem__(self, idx):
         return self.data[idx]
+    

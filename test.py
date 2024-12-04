@@ -83,6 +83,8 @@ def train_epoch_ch3(net, train_iter, loss, updater, W, b):
         else:
             l.sum().backward()
             updater(x.shape[0])
+        #print("%.7f" %W[1][1])
+        #print("%.3f" %i)
         metric.add(float(l.sum()), accuracy(y_hat, y), y.numel())
     return metric[0] / metric[1], metric[1] / metric[2]
 
@@ -116,11 +118,11 @@ if __name__ == '__main__':
     batch_size = 256
     num_inputs = 784
     num_outputs = 10
-    lr = 0.1
+    lr = 0.001
     W = torch.normal(0, 0.01, size = (num_inputs, num_outputs), requires_grad = True)
     b = torch.zeros(num_outputs, requires_grad = True)
-    num_epochs = 5
-    train_iter, test_iter = load_data_fashion_mnist(32)
+    num_epochs = 20
+    train_iter, test_iter = load_data_fashion_mnist(batch_size)
     train_ch3(net, train_iter, test_iter, cross_entropy, num_epochs, updater, W, b)
     #d2l.plt.show()
     predict_ch3(net, test_iter, W, b)
