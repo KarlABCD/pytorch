@@ -70,7 +70,8 @@ def train_ch8(net,
     loss = nn.CrossEntropyLoss()
     animator = d2l.Animator(xlabel='epoch',
                             ylabel= 'perplexity',
-                            legend = ['train'], xlim = [10, num_epochs])
+                            legend = ['train'],
+                            xlim = [10, num_epochs])
     
     if isinstance(net, nn.Module):
         updater = torch.optim.SGD(net.parameters(), lr)
