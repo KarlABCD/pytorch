@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <iostream>
+#include <cmath>
 #include "DataType.h"
 #include "CWalkEnv.h"
 
@@ -13,8 +14,11 @@ class PolicyIteration
 private:
 
     vector<float32> v;
-    vector<float32> pi;
+    vector<vector<float32>> pi;
+    vector<vector<float32>> P;
     CWalkEnv env;
+    uint16 u16EnvRows;
+    uint16 u16EnvCols;
 
 public:
     
@@ -24,6 +28,7 @@ public:
     void PrintStateValues();
     void PrintEnvValues();
     void PrintPolicy();
+    void PrintActionValues();
 };
 
 
