@@ -4,10 +4,20 @@
 #include <vector>
 #include <iostream>
 #include <cmath>
+#include <algorithm>
 #include "DataType.h"
 #include "CWalkEnv.h"
 
 using std::vector;
+
+
+struct tActionInfo
+{
+    float32 Possibility;
+    float32 Reward;
+    uint16 u16NextState;
+    boolean bEpisodeDone;
+};
 
 class PolicyIteration
 {
@@ -15,10 +25,10 @@ private:
 
     vector<float32> v;
     vector<vector<float32>> pi;
-    vector<vector<float32>> P;
+    vector<vector<tActionInfo>> P;
     CWalkEnv env;
-    uint16 u16EnvRows;
-    uint16 u16EnvCols;
+    size_t iEnvRows;
+    size_t iEnvCols;
 
 public:
     
@@ -29,6 +39,7 @@ public:
     void PrintEnvValues();
     void PrintPolicy();
     void PrintActionValues();
+    void createP();
 };
 
 

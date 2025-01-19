@@ -77,9 +77,10 @@ class CliffWalkingEnv:
                             a_char = '右'
                         else:
                             a_char = '未知'
-                        print(f'第i行: {i}, 第j列: {j}, 动作: {a_char}, 下一状态: {next_state}, 奖励: {reward}, 完成: {done}')
+                        
                         P[i * self.ncol + j][a] = [(1, i * self.ncol + j, 0,
                                                     True)]
+                        print(f'第i行: {i}, 第j列: {j}, 动作: {a_char}, 下一状态: {next_state}, 奖励: {reward}, 完成: {done}')
                     else:
                         #continue
                         # 其他位置
