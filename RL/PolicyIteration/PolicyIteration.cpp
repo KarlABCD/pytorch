@@ -1,23 +1,59 @@
 #include "PolicyIteration.h"
-using namespace std;
+using namespace::std;
+
+tReturnType PolicyEqual(vector<vector<float32>> const * old_pi_ptr, 
+                        vector<vector<float32>> const * pi_ptr, boolean & bPolicyEqual)
+{
+    bPolicyEqual = true;
+    if (old_pi_ptr == nullptr || pi_ptr == nullptr 
+        || (old_pi_ptr->size() != pi_ptr->size()))
+    {
+        bPolicyEqual = false;
+        return FuncAbNormal;
+    }
+    else
+    {
+        for(uint16 i = 0; i < old_pi_ptr->size(); i++)
+        {
+            if((*old_pi_ptr)[i].size() != (*pi_ptr)[i].size())
+            {
+                bPolicyEqual = false;
+                return FuncAbNormal;
+            }
+            else
+            {
+                for(uint16 j = 0; j < (*old_pi_ptr)[i].size(); j++)
+                {
+                    if(fabs((*old_pi_ptr)[i][j] - (*pi_ptr)[i][j]) 
+                                    > FlOAT32_EQ_TOLERANCE)
+                    {
+                        bPolicyEqual = false;
+                        return FuncNormal;
+                    }
+                }
+            }
+        }
+        return FuncNormal;
+    }
+}
 
 PolicyIteration::PolicyIteration()
 {
     cout << "PolicyIteration Default Init" << endl;
 };
 
-PolicyIteration::PolicyIteration(CWalkEnv ENV, uint16 u16Row, uint16 u16Col)
+PolicyIteration::PolicyIteration(uint16 u16Row, uint16 u16Col, 
+                                    float32 theta, float32 gamma)
 {
     cout << "PolicyIteration Row Col Init" << endl;
-    if (u16Row * u16Col > MAX_UINT16_VALUE)
+    env = CWalkEnv(u16Row, u16Col);
+    if (env.GetRows() * env.GetCols() > MAX_UINT16_VALUE)
         cout << "input error" <<endl;
     else
-        v = vector<float32>(u16Row * u16Col, 0);
-    env = ENV;
-    iEnvRows = int16(u16Row);
-    iEnvCols = int16(u16Col);
-    pi = vector<vector<float32>>(u16Row * u16Col, vector<float32>(4, 0.25));
-    createP();
+        v = vector<float32>(env.GetNumStates(), 0);
+    pi = vector<vector<float32>>(env.GetNumStates(), vector<float32>(4, 0.25));
+    Potheta = theta;
+    Pogamma = gamma;
 };
 
 PolicyIteration::~PolicyIteration()
@@ -25,26 +61,27 @@ PolicyIteration::~PolicyIteration()
     cout << "PolicyInteration Destory" << endl;
 };
 
-
-void PolicyIteration::PrintStateValues()
+void PolicyIteration::PrintStateValues() const
 {
-    for (uint8 i = 0; i < v.size(); i++ )
+    cout << endl;
+    cout << "状态价值: " << endl;
+    for (uint8 i = 0; i < env.GetRows(); i++ )
     {
-        cout << "v: " << v[i] << endl;
+        for (uint8 j = 0; j < env.GetCols(); j++)
+        {
+            cout << v[i*env.GetCols() + j] << " ";
+        }
+        cout << endl;
     }
+    
 };
 
-void PolicyIteration::PrintEnvValues()
-{
-    env.PrintValue();
-};
-
-void PolicyIteration::PrintPolicy()
+void PolicyIteration::PrintPolicy() const
 {
     for (int16 i = 0; i < pi.size(); i++)
     {
-        cout << "第" << floor(i / iEnvCols) << "行";
-        cout << "第" << i % iEnvRows << "列的策略：" << endl;
+        cout << "第" << floor(i / env.GetCols()) << "行";
+        cout << "第" << i % env.GetRows() << "列的策略：" << endl;
         cout << "向上概率: " << pi[i][0] << endl;
         cout << "向下概率: " << pi[i][1] << endl;
         cout << "向左概率: " << pi[i][2] << endl;
@@ -52,69 +89,145 @@ void PolicyIteration::PrintPolicy()
     }
 }
 
-void PolicyIteration::PrintActionValues()
+void PolicyIteration::PrintActionValues() const
 {
-    for(int16 i = 0; i < P.size(); i++)
+    for(int16 i = 0; i < env.GetNumStates(); i++)
     {
-        cout << "状态在第" << floor(i / iEnvCols) <<"行";
-        cout << "第"<<i % iEnvCols << "列 : " << endl;
-        cout << "向上 Reward: " <<P[i][0].Reward << " ";
-        cout << "下一个状态 State: "<<P[i][0].u16NextState<< " " << endl;
-        cout << "向下 Reward: " <<P[i][1].Reward << " ";
-        cout << "下一个状态 State: "<<P[i][1].u16NextState<< " " << endl;
-        cout << "向左 Reward: " <<P[i][2].Reward << " ";
-        cout << "下一个状态 State: "<<P[i][2].u16NextState<< " " << endl; 
-        cout << "向右 Reward: " <<P[i][3].Reward << " ";
-        cout << "下一个状态 State: "<<P[i][3].u16NextState<< " " << endl;
+        cout << "状态在第" << floor(i / env.GetCols()) <<"行";
+        cout << "第"<<i % env.GetCols() << "列 : " << endl;
+        cout << "向上 Reward: " <<env.GetP(i, 0).Reward << " ";
+        cout << "下一个状态 State: "<<env.GetP(i, 0).u16NextState<< " " << endl;
+        cout << "向下 Reward: " <<env.GetP(i, 1).Reward << " ";
+        cout << "下一个状态 State: "<<env.GetP(i, 1).u16NextState<< " " << endl;
+        cout << "向左 Reward: " <<env.GetP(i, 2).Reward << " ";
+        cout << "下一个状态 State: "<<env.GetP(i, 2).u16NextState<< " " << endl; 
+        cout << "向右 Reward: " <<env.GetP(i, 3).Reward << " ";
+        cout << "下一个状态 State: "<<env.GetP(i, 3).u16NextState<< " " << endl;
     }
 }
 
-void PolicyIteration::createP()
+void PolicyIteration::PolicyEvaluation()
 {
-    P = vector<vector<tActionInfo>>(iEnvRows * iEnvCols, 
-                                    vector<tActionInfo>(4, {0, 0, 0, false}));
-    vector<vector<int16>> change = {{0, int16(-1)}, {0, 1}, {int16(-1), 0}, {1, 0}};
-    for (int16 i = 0; i < (int16)iEnvRows; i++)
+    uint8 cnt = 1;
+    vector<float32> qsa[4];
+    while (true)
     {
-        for (int16 j = 0; j < (int16)iEnvCols; j++)
+        float32 max_diff = 0.0F;
+        vector<float32> new_v = vector<float32>(env.GetNumStates(), 0);
+        for (uint16 i = 0; i < env.GetNumStates(); i++)
         {
-            for (int16 a = 0; a < 4; a++)
+            vector<float32> qsa = vector<float32>(4, 0);
+            for(uint16 j = 0; j < 4; j++)
             {
-                if (i == iEnvRows - 1 && j > 0)
+                if (~env.GetP(i, j).bEpisodeDone)
                 {
-                    P[i * iEnvCols + j][a].Possibility = 1.0F;
-                    P[i * iEnvCols + j][a].Reward = 0.0F;
-                    P[i * iEnvCols + j][a].u16NextState = i * iEnvCols + j;
-                    P[i * iEnvCols + j][a].bEpisodeDone = true;
-                    cout << P[i * iEnvCols + j][a].Reward << endl;
-                    cout << i * iEnvCols + j << endl;
-                    cout << a << endl;
+                    qsa[j] = env.GetP(i, j).Possibility * 
+                    (env.GetP(i, j).Reward 
+                    + Pogamma * v[env.GetP(i, j).u16NextState]);
                 }
                 else
                 {
-                    int16 next_x = min(int16(iEnvCols - 1), 
-                                        max(int16(0), (int16)(j + change[a][0])));
-                    int16 next_y = min(int16(iEnvRows - 1),
-                                        max(int16(0), (int16)(i + change[a][1])));
-                    int16 next_state = next_y * iEnvCols + next_x;
-                    float32 reward = -1.0F;
-                    boolean bEpisodeDone = false;
-                    if (next_y == iEnvRows - 1 && next_x > 0)
-                    {
-                        bEpisodeDone = true;
-                        if(next_x != iEnvCols - 1)
-                        {
-                            reward = -100.0F; 
-                        }
-                    }   
-                    P[i * iEnvCols + j][a].Possibility = 1.0F;
-                    P[i * iEnvCols + j][a].Reward = reward;
-                    P[i * iEnvCols + j][a].u16NextState = uint16(next_state);
-                    P[i * iEnvCols + j][a].bEpisodeDone = bEpisodeDone;
+                    qsa[j] = env.GetP(i, j).Possibility * env.GetP(i, j).Reward;
                 }
+                qsa[j] = qsa[j] * pi[i][j];
+                //PrintPolicy();
+            }
+            VectorSum(&qsa, new_v[i]);
+            max_diff = max(max_diff, fabs(new_v[i] - v[i]));
+        }
+        v = new_v;
+        if (max_diff < Potheta)
+            break;
+        
+        cnt += 1;
+    }
+     printf("策略评估进行%d轮后完成\n", cnt);
+     PrintAgent();
+}
+
+void PolicyIteration::PolicyImprovement()
+{   
+    float32 maxq;
+    for(uint16 s = 0; s < env.GetNumStates(); s++)
+    {
+        vector<float32> qsa = vector<float32>(4, 0);
+        uint16 u16cntq;
+        for(uint16 a = 0; a < 4; a++)
+        {
+            if(~env.GetP(s, a).bEpisodeDone)
+            {
+                qsa[a] = env.GetP(s,a).Possibility * ((env.GetP(s,a).Reward) 
+                        + v[env.GetP(s,a).u16NextState] * Pogamma);
+            }
+            else
+            {
+                qsa[a] = env.GetP(s,a).Possibility * (env.GetP(s,a).Reward);
             }
         }
+        VectorMax(&qsa, maxq);
+        VectorCountEq(&qsa, maxq, u16cntq);
+        for (uint16 i = 0; i < 4; i++)
+        {
+            if(fabs(qsa[i] - maxq) < FlOAT32_EQ_TOLERANCE)
+                pi[s][i] = 1 / (float32)u16cntq;
+            else
+                pi[s][i] = 0.0F;
+        }
     }
-    //PrintActionValues();
+}
 
+
+void PolicyIteration::PolicyIterationMain()
+{
+    boolean bPolicyEq;
+    vector<vector<float32>> old_pi;
+    while(true)
+    {
+        PolicyEvaluation();
+        old_pi = pi;
+        PolicyImprovement();
+        PolicyEqual(&old_pi, &pi, bPolicyEq);
+        if (bPolicyEq)
+            break;
+    }
+}
+
+void PolicyIteration::PrintAgent()
+{
+    PrintStateValues();
+    cout << "策略: " << endl;
+    string action_meaning[4] = {"^", "v", "<", ">"};
+    
+    for(uint8 i = 0; i < env.GetRows(); i++)
+    {
+        for(uint8 j = 0; j < env.GetCols(); j++)
+        {
+            if ( i*env.GetCols() + j >= 37 && i*env.GetCols() + j <= 46)
+            {
+                cout << "****" << " ";
+            }
+            else if (i*env.GetCols() + j == 47)
+            {
+                cout << "EEEE" << " ";
+            }
+            else
+            {
+                vector<float32> a = pi[i*env.GetCols() + j];
+                string pi_str = {};
+                for (uint8 k = 0; k < 4; k++)
+                {
+                    if(a[k] > 0)
+                    {
+                        pi_str += action_meaning[k];
+                    }
+                    else
+                    {
+                        pi_str += "o";
+                    }
+                }
+                cout << pi_str << " ";
+            }
+        }
+        cout << endl;
+    }
 }
