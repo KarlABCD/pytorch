@@ -8,15 +8,18 @@ CWalkEnv::CWalkEnv()
     cout << "CWalkEnv Default Initialization" << endl;
 };
 
-CWalkEnv::CWalkEnv(uint16 nCol, uint16 nRow)
+CWalkEnv::CWalkEnv(uint16 nRow, uint16 nCol)
 {
     cout << "CWalkEnv nCol nRow Initialization" << endl;
-    u16NCol = nCol;
-    u16NRow = nRow;
-    if (u16NCol*u16NRow < MAX_UINT16_VALUE)
-        u16NumStates = u16NCol*u16NRow;
+    u16Rows = nRow;
+    u16Cols = nCol;
+    x = 0U;
+    y = nRow - 1;
+    if (u16Cols * u16Rows < MAX_UINT16_VALUE)
+        u16NumStates = u16Cols * u16Rows;
     else
         cout << "超过限制" << endl;
+    CreateP();
 }
 
 CWalkEnv::~CWalkEnv()
@@ -26,12 +29,65 @@ CWalkEnv::~CWalkEnv()
 
 void CWalkEnv::CreateP()
 {
-    cout << "完成Action Value矩阵" << endl;
+    P = vector<vector<tActionInfo>>(u16NumStates, 
+                                    vector<tActionInfo>(4, {0, 0, 0, false}));
+    vector<vector<int16>> change = {{0, int16(-1)}, {0, 1}, 
+                                    {int16(-1), 0}, {1, 0}};
+    cout << "环境模型: "<< endl;
+    for (int16 i = 0; i < (int16)u16Rows; i++)
+    {
+        for (int16 j = 0; j < (int16)u16Cols; j++)
+        {
+            for (int16 a = 0; a < 4; a++)
+            {
+                if (i == u16Rows - 1 && j > 0)
+                {
+                    P[i * u16Cols + j][a].Possibility = 1.0F;
+                    P[i * u16Cols + j][a].Reward = 0.0F;
+                    P[i * u16Cols + j][a].u16NextState = i * u16Cols + j;
+                    P[i * u16Cols + j][a].bEpisodeDone = true;
+                }
+                else
+                {
+                    int16 next_x = min(int16(u16Cols - 1), 
+                                    max(int16(0), (int16)(j + change[a][0])));
+                    int16 next_y = min(int16(u16Rows - 1),
+                                    max(int16(0), (int16)(i + change[a][1])));
+                    int16 next_state = next_y * u16Cols + next_x;
+                    float32 reward = -1.0F;
+                    boolean bEpisodeDone = false;
+                    if (next_y == u16Rows - 1 && next_x > 0)
+                    {
+                        bEpisodeDone = true;
+                        if(next_x != u16Cols - 1)
+                        {
+                            reward = -100.0F; 
+                        }
+                    }   
+                    P[i * u16Cols + j][a].Possibility = 1.0F;
+                    P[i * u16Cols + j][a].Reward = reward;
+                    P[i * u16Cols + j][a].u16NextState = uint16(next_state);
+                    P[i * u16Cols + j][a].bEpisodeDone = bEpisodeDone;
+                }
+                cout << "行数: " << i << " 列数: " << j << endl;
+                cout << "Possibility: " << P[i * u16Cols + j][a].Possibility;
+                cout << " Reward: " << P[i * u16Cols + j][a].Reward;
+                cout << " u16NextState: " << P[i * u16Cols + j][a].u16NextState;
+                cout << " bEpisodeDone: " << P[i * u16Cols + j][a].bEpisodeDone;
+                cout << endl;
+            }
+        }
+    }
 };
 
-void CWalkEnv::PrintValue()
+void CWalkEnv::PrintEnvValue() const
 {
-    cout << "悬崖行数: " << u16NRow << endl;
-    cout << "悬崖列数: " << u16NCol << endl;
+    cout << "悬崖行数: " << u16Rows << endl;
+    cout << "悬崖列数: " << u16Cols << endl;
     cout << "状态总数: " << u16NumStates << endl;
+};
+
+void CWalkEnv::Reset(uint16 & CurState)
+{
+    CurState = y * u16Cols + x;
 };

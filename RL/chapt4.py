@@ -33,18 +33,30 @@ class CliffWalkingEnv:
             idx_labels_y = [i for i in range(self.nrow)]
 
             for lb in idx_labels_x:
-                self.ax.text(lb, -0.75, str(lb+1), size=10, ha='center', va='center', color='black')           
+                self.ax.text(lb, -0.75, str(lb+1), size=10, 
+                             ha='center', va='center', color='black')           
             for lb in idx_labels_y:
-                self.ax.text(-0.75, lb, str(lb+1), size=10, ha='center', va='center', color='black')
+                self.ax.text(-0.75, lb, str(lb+1), size=10, 
+                             ha='center', va='center', color='black')
             for lb in idx_labels_y:
-                self.ax.text(-0.75, lb, str(lb+1), size=10, ha='center', va='center', color='black')
-            self.ax.tick_params(bottom=False, left=False, right=False, top=False, labelbottom=False, labelleft=False,labeltop=False)   
+                self.ax.text(-0.75, lb, str(lb+1), size=10, 
+                             ha='center', va='center', color='black')
+            self.ax.tick_params(bottom=False, left=False, right=False, top=False, 
+                                labelbottom=False, labelleft=False,labeltop=False)   
 
-            self.target_rect = patches.Rectangle( (self.target_state[0][1]-0.5, self.target_state[0][0]-0.5), 1, 1, linewidth=1, edgecolor=self.color_target, facecolor=self.color_target)
+            self.target_rect = patches.Rectangle( (self.target_state[0][1]-0.5, 
+                                                   self.target_state[0][0]-0.5), 
+                                                   1, 1, linewidth=1, 
+                                                   edgecolor=self.color_target, 
+                                                   facecolor=self.color_target)
             self.ax.add_patch(self.target_rect)   
 
             for forbidden_state in self.forbidden_states:
-                rect = patches.Rectangle((forbidden_state[1]-0.5, forbidden_state[0]-0.5), 1, 1, linewidth=1, edgecolor=self.color_forbid, facecolor=self.color_forbid)
+                rect = patches.Rectangle((forbidden_state[1]-0.5, 
+                                          forbidden_state[0]-0.5), 
+                                          1, 1, linewidth=1, 
+                                          edgecolor=self.color_forbid, 
+                                          facecolor=self.color_forbid)
                 self.ax.add_patch(rect)
 
             plt.draw()
@@ -139,7 +151,7 @@ class PolicyIteration:
             self.v = new_v
             if max_diff < self.theta: break  # 满足收敛条件,退出评估迭代
             cnt += 1
-        print("策略评估进行%d轮后完成" % cnt)
+        print(f"策略评估进行{cnt}轮后完成")
 
     def policy_improvement(self):  # 策略提升
         for s in range(self.env.nrow * self.env.ncol):
@@ -240,7 +252,7 @@ env = CliffWalkingEnv()
 action_meaning = ['^', 'v', '<', '>']
 theta = 0.001
 gamma = 0.9
-method = 'Value'
+method = 'Policy'
 if (method == 'Policy'):
     agent = PolicyIteration(env, theta, gamma)
     agent.policy_iteration()

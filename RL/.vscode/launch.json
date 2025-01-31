@@ -5,7 +5,7 @@
             "name": "C++ Debug",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/MyExecutable",
+            "program": "${workspaceFolder}/build/ReforceLearning",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
