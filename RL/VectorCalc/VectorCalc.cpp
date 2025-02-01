@@ -75,3 +75,31 @@ tReturnType VectorCountEq(vector<float32> * InputArr, float32 const EqValue,
         return FuncNormal;
     }
 }
+
+tReturnType VectorMaxIdx(const vector<float32> * InputArr,
+                        uint16 & MaxIdx)
+{
+    float32 Max;
+    MaxIdx = 0U;
+    if(InputArr == nullptr)
+    {
+        return FuncAbNormal;
+    }
+    else
+    {
+        Max = (*InputArr)[0];
+        for (uint16 i = 0; i < (*InputArr).size(); i++)
+        {
+            if ((*InputArr)[i] > Max)
+            {
+                Max = (*InputArr)[i];
+                MaxIdx = i;
+            }
+            else
+            {
+                continue;
+            }
+        }
+        return FuncNormal;
+    }
+}

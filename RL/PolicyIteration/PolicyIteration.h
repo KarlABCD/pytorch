@@ -2,7 +2,6 @@
 #define POLICYITERATION_H_
 
 #include <vector>
-#include <array>
 #include <iostream>
 #include <cmath>
 #include <algorithm>

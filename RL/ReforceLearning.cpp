@@ -13,7 +13,8 @@ int main()
     float32 epsilon = 0.1F;
     float32 alpha = 0.1F;
     float32 gamma = 0.9F;
-    QLearning agent = QLearning(12, 4, epsilon, alpha, gamma);
-
+    uint16 num_episodes = 500U;
+    QLearning agent = QLearning(12, 4, epsilon, alpha, gamma, num_episodes);
+    agent.QLearningMain();
     return 0;
 }
