@@ -45,7 +45,7 @@ def print_agent(agent, env, action_meaning, disaster=[], end=[]):
                 print(pi_str, end=' ')
         print()
         
-class Sarsa:
+'''class Sarsa:
     """ Sarsa算法 """
     def __init__(self, ncol, nrow, epsilon, alpha, gamma, n_action=4):
         self.Q_table = np.zeros([nrow * ncol, n_action])  # 初始化Q(s,a)表格
@@ -230,7 +230,7 @@ plt.plot(episodes_list, return_list)
 plt.xlabel('Episodes')
 plt.ylabel('Returns')
 plt.title('5-step Sarsa on {}'.format('Cliff Walking'))
-plt.show()
+plt.show()'''
 
 
 class QLearning:
@@ -262,6 +262,9 @@ class QLearning:
         self.Q_table[s0, a0] += self.alpha * td_error
 
 
+ncol = 12
+nrow = 4
+env = CliffWalkingEnv(ncol, nrow)
 np.random.seed(0)
 epsilon = 0.1
 alpha = 0.1

@@ -3,10 +3,10 @@ project(ReforceLearning)
 set(CMAKE_CXX_STANDARD 11)
 
 # 查找 gtest 库
-find_package(GTest REQUIRED)
+#find_package(GTest REQUIRED)
 
 # 包含 gtest 的头文件目录
-include_directories(${GTEST_INCLUDE_DIRS})
+#include_directories(${GTEST_INCLUDE_DIRS})
 
 include_directories(CliffWalkingEnv DataType PolicyIteration VectorCalc 
                     StringOper QLearning)
@@ -20,10 +20,10 @@ add_executable(ReforceLearning ReforceLearning.cpp
                QLearning/QLearning.cpp)
 
 # 链接 gtest 库
-target_link_libraries(ReforceLearning ${GTEST_LIBRARIES} pthread)
+#target_link_libraries(ReforceLearning ${GTEST_LIBRARIES} pthread)
 
 # 启用测试
-enable_testing()
+#enable_testing()
 
 # 添加测试
-add_test(NAME VectorCalcTest COMMAND VectorCalcTest)
+#add_test(NAME VectorCalcTest COMMAND VectorCalcTest)

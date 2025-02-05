@@ -15,6 +15,7 @@ private:
     float32 gamma;
     float32 epsilon;
     uint16 num_episodes;
+    vector<float32> return_list;
 
 public:
     CWalkEnv env;
@@ -28,6 +29,7 @@ public:
                 {
                     Q_table = vector<vector<float32>>(nEnvcol*nEnvrow, 
                     vector<float32>(n_action, 0));
+                    return_list = vector<float32>(num_episodes, 0);
                     env = CWalkEnv(nEnvcol, nEnvrow);
                 }
     ~QLearning();
@@ -37,6 +39,9 @@ public:
     void BestAction();
     void Update(uint16 const state, uint16 const action, 
                 float32 const reward, uint16 const next_state);
+    void PrintQTableValue(uint16 u16ExpState) const;
+    void PrintWholeQTable() const;
+    void PrintAgent();
 };
 
 #endif

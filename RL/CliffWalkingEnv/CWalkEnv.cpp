@@ -89,6 +89,8 @@ void CWalkEnv::PrintEnvValue() const
 
 void CWalkEnv::Reset(uint16 & CurState)
 {
+    x = 0;
+    y = int16(u16Rows) - 1;
     CurState = y * u16Cols + x;
 };
 

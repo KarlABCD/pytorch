@@ -35,11 +35,12 @@ tReturnType VectorSum(const vector<vector<float32>> * InputMat,
 
 tReturnType VectorMax(const vector<float32> * InputArr, float32 & Max)
 {
-    Max = -100000.0F;
+    
     if( InputArr == nullptr)
         return FuncAbNormal;
     else
     {
+        Max = (*InputArr)[0];
         for(float32 Input: *InputArr)
         {
             if(Input > Max)
