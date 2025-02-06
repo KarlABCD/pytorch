@@ -28,8 +28,9 @@ class Qnet(nn.Module):
     def __init__(self, state_dim, hidden_dim, action_dim):
         super(Qnet, self).__init__()
         self.fc1 = nn.Linear(state_dim, hidden_dim)
-        self.fc2 = nn.Linear(hidden_dim, action_dim)
         self.relu = nn.ReLU()
+        self.fc2 = nn.Linear(hidden_dim, action_dim)
+        
 
     def forward(self, x):
         #x = F.relu(self.fc1(x))  # 隐藏层使用ReLU激活函数
@@ -85,7 +86,7 @@ class DQN:
         q_targets = rewards + self.gamma * max_next_q_values * (1 - dones
                                                                 )  # TD误差目标
         dqn_loss = torch.mean(F.mse_loss(q_values, q_targets))  # 均方误差损失函数
-        print(dqn_loss)
+        #print(dqn_loss)
         self.optimizer.zero_grad()  # PyTorch中默认梯度会累积,这里需要显式将梯度置为0
         dqn_loss.backward()  # 反向传播更新参数
         
@@ -98,7 +99,7 @@ class DQN:
         
     def best_action(self, state):  # 用于打印策略
         #Q_max = np.max(self.Q_table[state])
-        state = torch.tensor(state, dtype=torch.float).unsqueeze(0).to(device)
+        state = torch.tensor(state, dtype=torch.float).unsqueeze(0).to(self.device)
         #q_max = self.q_net(state).detach().tolist()
         q = self.q_net(state)
         q_max = q.max()
@@ -122,14 +123,15 @@ class CliffWalkingEnv:
         self.x = min(self.ncol - 1, max(0, self.x + change[action][0]))
         self.y = min(self.nrow - 1, max(0, self.y + change[action][1]))
         next_state = self.y * self.ncol + self.x
-        reward = 100
-        done = False
         if self.y == self.nrow - 1 and self.x > 0:  # 下一个位置在悬崖或者目标
             done = True
             if self.x != self.ncol - 1:
-                reward = 0
+                reward = -100
             else:
                 reward = 200
+        else:
+            reward = 1/(abs(self.x - self.ncol + 1) + abs(self.y - 3))
+            done = False
         return next_state, reward, done
 
     def reset(self):  # 回归初始状态,坐标轴原点在左上角
@@ -158,21 +160,21 @@ env = CliffWalkingEnv(ncol, nrow)
 random.seed(0)
 np.random.seed(0)
 torch.manual_seed(0)
-epsilon = 0.3
-gamma = 0.98
-hidden_dim = 128
+epsilon = 0.1
+gamma = 0.5
+hidden_dim = 256
 state_dim = 1
 action_dim = 4
 lr = 0.001
-target_update = 10
+target_update = 1
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device(
     "cpu")
 agent = DQN(state_dim, hidden_dim, action_dim, lr, gamma, epsilon,
             target_update, device)
-num_episodes = 50  # 智能体在环境中运行的序列的数量
+num_episodes = 10000  # 智能体在环境中运行的序列的数量
 buffer_size = 10000
 minimal_size = 500
-batch_size = 64
+batch_size = 8
 replay_buffer = ReplayBuffer(buffer_size)
 return_list = []  # 记录每一条序列的回报
 action_meaning = ['^', 'v', '<', '>']
@@ -188,7 +190,6 @@ for i in range(10):  # 显示10个进度条
                 next_state, reward, done = env.step(action)
                 episode_return += reward  # 这里回报的计算不进行折扣因子衰减
                 replay_buffer.add(state, action, reward, next_state, done)
-
                 state = next_state
                 if replay_buffer.size() > minimal_size:
                     b_s, b_a, b_r, b_ns, b_d = replay_buffer.sample(batch_size)    
@@ -209,6 +210,7 @@ for i in range(10):  # 显示10个进度条
                     '%.3f' % np.mean(return_list[-10:])
                 })
             pbar.update(1)
+    print_agent(agent, env, action_meaning, list(range(37, 47)), [47])
         
 episodes_list = list(range(len(return_list)))
 '''plt.plot(episodes_list, return_list)
