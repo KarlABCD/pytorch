@@ -49,6 +49,8 @@ class DQN:
         # 目标网络
         self.target_q_net = Qnet(state_dim, hidden_dim,
                                  self.action_dim).to(device)
+        for param in self.target_q_net.parameters():
+            param.requires_grad = False
         # 使用Adam优化器
         self.optimizer = torch.optim.Adam(self.q_net.parameters(),
                                           lr=learning_rate)
@@ -82,7 +84,7 @@ class DQN:
         q_values = self.q_net(states).gather(1, actions)  # Q值
         # 下个状态的最大Q值
         max_next_q_values = self.target_q_net(next_states).max(1)[0].view(
-            -1, 1)
+                -1, 1)
         q_targets = rewards + self.gamma * max_next_q_values * (1 - dones
                                                                 )  # TD误差目标
         dqn_loss = torch.mean(F.mse_loss(q_values, q_targets))  # 均方误差损失函数
@@ -128,15 +130,16 @@ class CliffWalkingEnv:
             if self.x != self.ncol - 1:
                 reward = -100
             else:
-                reward = 200
+                reward = 100
         else:
-            reward = 1/(abs(self.x - self.ncol + 1) + abs(self.y - 3))
+            #reward = 1/(abs(self.x - self.ncol + 1) + abs(self.y - 3))
+            reward = -1
             done = False
         return next_state, reward, done
 
     def reset(self):  # 回归初始状态,坐标轴原点在左上角
-        self.x = 0
-        self.y = self.nrow - 1
+        self.x = 11
+        self.y = self.nrow - 2
         return self.y * self.ncol + self.x
     
 def print_agent(agent, env, action_meaning, disaster=[], end=[]):
@@ -161,23 +164,32 @@ random.seed(0)
 np.random.seed(0)
 torch.manual_seed(0)
 epsilon = 0.1
-gamma = 0.5
-hidden_dim = 256
+gamma = 0.9
+hidden_dim = 128
 state_dim = 1
 action_dim = 4
-lr = 0.001
-target_update = 1
+lr = 0.1
+target_update = 20
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device(
     "cpu")
 agent = DQN(state_dim, hidden_dim, action_dim, lr, gamma, epsilon,
             target_update, device)
-num_episodes = 10000  # 智能体在环境中运行的序列的数量
-buffer_size = 10000
-minimal_size = 500
-batch_size = 8
+num_episodes = 2000  # 智能体在环境中运行的序列的数量
+buffer_size = 192
+minimal_size = 1
+batch_size = 192
 replay_buffer = ReplayBuffer(buffer_size)
 return_list = []  # 记录每一条序列的回报
 action_meaning = ['^', 'v', '<', '>']
+for i in range(nrow):
+    for j in range(ncol):
+        state = i * ncol + j
+        for a in range(4):
+            env.x = j
+            env.y = i
+            next_state, reward, done = env.step(a)
+            replay_buffer.add(state, a, reward, next_state, done)
+            print(f'{state}, {a}, {reward}, {next_state}, {done}')
 for i in range(10):  # 显示10个进度条
     # tqdm的进度条功能
     with tqdm(total=int(num_episodes / 10), desc='Iteration %d' % i) as pbar:
@@ -189,7 +201,6 @@ for i in range(10):  # 显示10个进度条
                 action = agent.take_action(state)
                 next_state, reward, done = env.step(action)
                 episode_return += reward  # 这里回报的计算不进行折扣因子衰减
-                replay_buffer.add(state, action, reward, next_state, done)
                 state = next_state
                 if replay_buffer.size() > minimal_size:
                     b_s, b_a, b_r, b_ns, b_d = replay_buffer.sample(batch_size)    
@@ -201,13 +212,14 @@ for i in range(10):  # 显示10个进度条
                             'dones': b_d
                         }
                     agent.update(transition_dict)
+            #print_agent(agent, env, action_meaning, list(range(37, 47)), [47])
             return_list.append(episode_return)
-            if (i_episode + 1) % 5 == 0:  # 每10条序列打印一下这10条序列的平均回报
+            if (i_episode + 1) % 1 == 0:  # 每10条序列打印一下这10条序列的平均回报
                 pbar.set_postfix({
                     'episode':
-                    '%d' % (num_episodes / 10 * i + i_episode + 1),
+                    '%d' % (num_episodes / 1 * i + i_episode + 1),
                     'return':
-                    '%.3f' % np.mean(return_list[-10:])
+                    '%.3f' % np.mean(return_list[-1:])
                 })
             pbar.update(1)
     print_agent(agent, env, action_meaning, list(range(37, 47)), [47])
