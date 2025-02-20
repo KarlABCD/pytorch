@@ -50,8 +50,6 @@ class DQN:
         # 目标网络
         self.target_q_net = Qnet(state_dim, hidden_dim,
                                  self.action_dim).to(device)
-        for param in self.target_q_net.parameters():
-            param.requires_grad = False
         # 使用Adam优化器
         self.optimizer = torch.optim.Adam(self.q_net.parameters(),
                                           lr=learning_rate)
@@ -186,15 +184,6 @@ batch_size = 64
 replay_buffer = ReplayBuffer(buffer_size)
 return_list = []  # 记录每一条序列的回报
 action_meaning = ['^', 'v', '<', '>']
-'''for i in range(nrow):
-    for j in range(ncol):
-        state = i * ncol + j
-        for a in range(4):
-            env.x = j
-            env.y = i
-            next_state, reward, done = env.step(a)
-            replay_buffer.add(state, a, reward, next_state, done)
-            print(f'{state}, {a}, {reward}, {next_state}, {done}')'''
 for i in range(10):  # 显示10个进度条
     # tqdm的进度条功能
     with tqdm(total=int(num_episodes / 10), desc='Iteration %d' % i) as pbar:
