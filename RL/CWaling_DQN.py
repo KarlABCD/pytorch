@@ -43,6 +43,7 @@ class DQN:
     def __init__(self, state_dim, hidden_dim, action_dim, learning_rate, gamma,
                  epsilon, target_update, device):
         self.action_dim = action_dim
+        self.state_dim = state_dim
         self.q_net = Qnet(state_dim, hidden_dim,
                           self.action_dim).to(device)  # Q网络
 
@@ -60,25 +61,31 @@ class DQN:
         self.target_update = target_update  # 目标网络更新频率
         self.count = 0  # 计数器,记录更新次数
         self.device = device
-
+    def state_one_hot(self, state):
+        if state.size == 1:
+            state_one_hot = torch.zeros((self.state_dim), dtype = torch.float32)
+            state_one_hot[state] = 1
+        else:
+            state_one_hot = torch.zeros((state.size, self.state_dim), dtype = torch.float32)
+            for i in range(state.size):
+                state_one_hot[i][state[i]] = 1      
+        return state_one_hot
+    
     def take_action(self, state):  # epsilon-贪婪策略采取动作
         if np.random.random() < self.epsilon:
             action = np.random.randint(self.action_dim)
         else:
-            state = torch.tensor(
-                state, dtype=torch.float).unsqueeze(0).to(self.device)
+            state = self.state_one_hot(np.array(state)).to(self.device)
             action = self.q_net(state).argmax().item()
         return action
 
     def update(self, transition_dict):
-        states = torch.tensor(transition_dict['states'],
-                              dtype=torch.float).unsqueeze(1).to(self.device)
+        states = self.state_one_hot(transition_dict['states']).to(self.device)
         actions = torch.tensor(transition_dict['actions']).view(-1, 1).to(
             self.device)
         rewards = torch.tensor(transition_dict['rewards'],
                                dtype=torch.float).view(-1, 1).to(self.device)
-        next_states = torch.tensor(transition_dict['next_states'],
-                                   dtype=torch.float).unsqueeze(1).to(self.device)
+        next_states = self.state_one_hot(transition_dict['next_states']).to(self.device)
         dones = torch.tensor(transition_dict['dones'],
                              dtype=torch.float).view(-1, 1).to(self.device)
         q_values = self.q_net(states).gather(1, actions)  # Q值
@@ -91,9 +98,7 @@ class DQN:
         #print(dqn_loss)
         self.optimizer.zero_grad()  # PyTorch中默认梯度会累积,这里需要显式将梯度置为0
         dqn_loss.backward()  # 反向传播更新参数
-        
         self.optimizer.step()
-
         if self.count % self.target_update == 0:
             self.target_q_net.load_state_dict(
                 self.q_net.state_dict())  # 更新目标网络
@@ -101,7 +106,7 @@ class DQN:
         
     def best_action(self, state):  # 用于打印策略
         #Q_max = np.max(self.Q_table[state])
-        state = torch.tensor(state, dtype=torch.float).unsqueeze(0).to(self.device)
+        state = self.state_one_hot(np.array(state)).to(self.device)
         #q_max = self.q_net(state).detach().tolist()
         q = self.q_net(state)
         q_max = q.max()
@@ -130,7 +135,7 @@ class CliffWalkingEnv:
             if self.x != self.ncol - 1:
                 reward = -100
             else:
-                reward = 100
+                reward = 0
         else:
             #reward = 1/(abs(self.x - self.ncol + 1) + abs(self.y - 3))
             reward = -1
@@ -138,8 +143,8 @@ class CliffWalkingEnv:
         return next_state, reward, done
 
     def reset(self):  # 回归初始状态,坐标轴原点在左上角
-        self.x = 11
-        self.y = self.nrow - 2
+        self.x = 0
+        self.y = self.nrow - 1
         return self.y * self.ncol + self.x
     
 def print_agent(agent, env, action_meaning, disaster=[], end=[]):
@@ -163,25 +168,25 @@ env = CliffWalkingEnv(ncol, nrow)
 random.seed(0)
 np.random.seed(0)
 torch.manual_seed(0)
-epsilon = 0.1
-gamma = 0.9
+epsilon = 0.01
+gamma = 0.99
 hidden_dim = 128
-state_dim = 1
+state_dim = 12 * 4
 action_dim = 4
-lr = 0.1
+lr = 0.01
 target_update = 20
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device(
     "cpu")
 agent = DQN(state_dim, hidden_dim, action_dim, lr, gamma, epsilon,
             target_update, device)
 num_episodes = 2000  # 智能体在环境中运行的序列的数量
-buffer_size = 192
-minimal_size = 1
-batch_size = 192
+buffer_size = 1000
+minimal_size = 500
+batch_size = 64
 replay_buffer = ReplayBuffer(buffer_size)
 return_list = []  # 记录每一条序列的回报
 action_meaning = ['^', 'v', '<', '>']
-for i in range(nrow):
+'''for i in range(nrow):
     for j in range(ncol):
         state = i * ncol + j
         for a in range(4):
@@ -189,7 +194,7 @@ for i in range(nrow):
             env.y = i
             next_state, reward, done = env.step(a)
             replay_buffer.add(state, a, reward, next_state, done)
-            print(f'{state}, {a}, {reward}, {next_state}, {done}')
+            print(f'{state}, {a}, {reward}, {next_state}, {done}')'''
 for i in range(10):  # 显示10个进度条
     # tqdm的进度条功能
     with tqdm(total=int(num_episodes / 10), desc='Iteration %d' % i) as pbar:
@@ -200,6 +205,7 @@ for i in range(10):  # 显示10个进度条
             while not done:
                 action = agent.take_action(state)
                 next_state, reward, done = env.step(action)
+                replay_buffer.add(state, action, reward, next_state, done)
                 episode_return += reward  # 这里回报的计算不进行折扣因子衰减
                 state = next_state
                 if replay_buffer.size() > minimal_size:
