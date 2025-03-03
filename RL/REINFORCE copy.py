@@ -86,18 +86,19 @@ def reinforce(env, policy_network, optimizer, num_episodes, gamma=0.99):
     action_meaning = ['^', 'v', '<', '>']
     for episode in range(num_episodes):
         state = env.reset()
-        state = policy_network.state_one_hot(np.array(state))
         log_probs = []
         rewards = []
+        next_states = []
         done = False
         # 生成一个episode
         while not done:
+            state = policy_network.state_one_hot(np.array(state))
             probs = policy_network(state)
             action = torch.multinomial(probs, 1).item()
             log_prob = torch.log(probs.squeeze(0)[action])
             log_probs.append(log_prob)
             next_state, reward, done = env.step(action)
-            next_state = policy_network.state_one_hot(np.array(next_state))
+            #next_state = policy_network.state_one_hot(np.array(next_state))
             rewards.append(reward)
             state = next_state
 
@@ -106,19 +107,14 @@ def reinforce(env, policy_network, optimizer, num_episodes, gamma=0.99):
 
         # 计算累积奖励
         R = 0
-        policy_loss = []
+        optimizer.zero_grad()
         for r, log_prob in zip(reversed(rewards), reversed(log_probs)):
             R = r + gamma * R
-            loss = (-log_prob * R).unsqueeze(0)
-            policy_loss.append(loss)
-
-        policy_loss = torch.cat(policy_loss).sum()
-
-        # 更新策略网络
-        optimizer.zero_grad()
-        policy_loss.backward()
+            #loss = (-log_prob * R).unsqueeze(0)
+            loss = -log_prob * R
+            loss.backward()
         optimizer.step()
-
+        # 更新策略网络
         if episode % 100 == 0:
             print(f"Episode {episode}: Average Reward = {np.mean(all_rewards[-100:])}")
             print_agent(policy_network, env, action_meaning, list(range(37, 47)), [47])
@@ -128,10 +124,11 @@ def reinforce(env, policy_network, optimizer, num_episodes, gamma=0.99):
 if __name__ == "__main__":
     ncol = 12
     nrow = 4
+    torch.manual_seed(6)
     env = CliffWalkingEnv(ncol, nrow)
     input_dim = 48
     output_dim = 4
     policy_network = PolicyNetwork(input_dim, output_dim)
     optimizer = optim.Adam(policy_network.parameters(), lr=0.01)
-    num_episodes = 2000
+    num_episodes = 1000
     rewards = reinforce(env, policy_network, optimizer, num_episodes)

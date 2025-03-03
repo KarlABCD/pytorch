@@ -7,6 +7,7 @@ from collections import deque
 import matplotlib.pyplot as plt
 import rl_utils
 from tqdm import tqdm
+from torchviz import make_dot
 
 # 自定义悬崖漫游环境
 class CliffWalkingEnv:
@@ -48,7 +49,8 @@ class PolicyNet(torch.nn.Module):
 
     def forward(self, x):
         x = F.relu(self.fc1(x))
-        return F.softmax(self.fc2(x), dim=1)
+        x = self.fc2(x)
+        return F.softmax(x, dim=-1)
 
 # REINFORCE算法实现
 class REINFORCE:
@@ -61,42 +63,56 @@ class REINFORCE:
         self.gamma = gamma  # 折扣因子
         self.device = device
         self.state_dim = state_dim
+        self.action_dim = action_dim
         
-    def state_one_hot(self, state):
-        if state.size == 1:
-            state_one_hot = torch.zeros((state.size, self.state_dim), dtype = torch.float32)
-            state_one_hot[0][state] = 1
+    def transfer_one_hot(self, input, dim):
+        if input.size == 1:
+            one_hot = torch.zeros((input.size, dim), dtype = torch.float32).to(self.device)
+            one_hot[0][input] = 1
         else:
-            state_one_hot = torch.zeros((state.size, self.state_dim), dtype = torch.float32)
-            for i in range(state.size):
-                state_one_hot[i][state[i]] = 1      
-        return state_one_hot
+            one_hot = torch.zeros((input.size, dim), dtype = torch.float32).to(self.device)
+            for i in range(input.size):
+                one_hot[i][input[i]] = 1      
+        return one_hot
     
     def take_action(self, state):  # 根据动作概率分布随机采样
-        state = self.state_one_hot(np.array(state)).to(self.device)
+        state = self.transfer_one_hot(np.array(state), self.state_dim)
         probs = self.policy_net(state)
-        action_dist = torch.distributions.Categorical(probs)
-        action = action_dist.sample()
-        return action.item()
+        action = torch.multinomial(probs, 1).item()
+        return action
+
+    def print_parameters(self):
+        for index, values in enumerate(self.policy_net.named_parameters()):
+            if(values[1].device.type == 'cuda'):
+                model_data = values[1].cpu().data.detach().numpy()
+            else:
+                model_data = values[1].data.detach().numpy()
+                if (values[0] == 'fc1.weight'):
+                    print(f'Para Name: {values[0]} \n Model Para: {model_data[35]}')
+        
 
     def update(self, transition_dict):
         reward_list = transition_dict['rewards']
         state_list = transition_dict['states']
         action_list = transition_dict['actions']
-
         G = 0
         self.optimizer.zero_grad()
         for i in reversed(range(len(reward_list))):  # 从最后一步算起
             reward = reward_list[i]
-            state = self.state_one_hot(np.array(state_list[i])).to(self.device)
-            action = torch.tensor([action_list[i]]).view(-1, 1).to(self.device)
-            log_prob = torch.log(self.policy_net(state).gather(1, action))
+            state = self.transfer_one_hot(np.array(state_list[i]), self.state_dim).to(self.device)
+            #action = torch.tensor([action_list[i]]).view(-1, 1).to(self.device)
+            action = self.transfer_one_hot(np.array(action_list[i]), self.action_dim).view(-1, 1).to(self.device)
+            log_prob = torch.log(self.policy_net(state)).to(self.device)
             G = self.gamma * G + reward
-            loss = -log_prob * G  # 每一步的损失函数
+            loss = -G * torch.matmul(log_prob, action)    # 每一步的损失函数
+            #self.print_parameters()
             loss.backward()  # 反向传播计算梯度
+        #self.print_parameters()
         self.optimizer.step()  # 梯度下降
+        #self.print_parameters()
+
     def best_action(self, state):  # 用于打印策略
-        state = self.state_one_hot(np.array(state)).to(self.device)
+        state = self.transfer_one_hot(np.array(state), self.state_dim).to(self.device)
         q = self.policy_net(state)
         q_max = q.max()
         a = [0 for _ in range(4)]
@@ -121,18 +137,20 @@ def print_agent(agent, env, action_meaning, disaster=[], end=[]):
 # 训练和测试
 if __name__ == "__main__":
     
-    np.random.seed(0)
-    torch.manual_seed(0)
+    #np.random.seed(0)
+    torch.manual_seed(6)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(6)
     ncol = 12
     nrow = 4
     env = CliffWalkingEnv(ncol, nrow)
-    gamma = 0.98
+    gamma = 0.99
     hidden_dim = 128
     state_dim = 12 * 4
     action_dim = 4
-    lr = 0.001
+    lr = 0.01
     num_episodes = 1000
-    device = torch.device("cuda") if torch.cuda.is_available() else torch.device(
+    device = torch.device("cpu") if torch.cuda.is_available() else torch.device(
     "cpu")
     agent = REINFORCE(state_dim, hidden_dim, action_dim, lr, gamma, device)
     return_list = []
@@ -171,19 +189,5 @@ if __name__ == "__main__":
                     })
                 pbar.update(1)
         print_agent(agent, env, action_meaning, list(range(37, 47)), [47])
-    '''episodes_list = list(range(len(return_list)))
-    plt.plot(episodes_list, return_list)
-    plt.xlabel('Episodes')
-    plt.ylabel('Returns')
-    plt.title('REINFORCE on CliffWalking')
-    plt.show()
-
-    mv_return = rl_utils.moving_average(return_list, 9)
-    plt.plot(episodes_list, mv_return)
-    plt.xlabel('Episodes')
-    plt.ylabel('Returns')
-    plt.title('REINFORCE on CliffWalking')
-    plt.show()'''
-    
     print('Q-learning算法最终收敛得到的策略为：')
     print_agent(agent, env, action_meaning, list(range(37, 47)), [47])

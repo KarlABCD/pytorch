@@ -166,7 +166,7 @@ env = CliffWalkingEnv(ncol, nrow)
 random.seed(0)
 np.random.seed(0)
 torch.manual_seed(0)
-epsilon = 0.01
+epsilon = 0.5
 gamma = 0.99
 hidden_dim = 128
 state_dim = 12 * 4

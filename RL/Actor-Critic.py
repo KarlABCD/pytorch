@@ -30,6 +30,7 @@ class CliffWalkingEnv:
             else:
                 reward = 0
         else:
+            #reward = -(abs(self.x - self.ncol + 1) + abs(self.y - 3))
             reward = -1
             done = False
         return next_state, reward, done
@@ -77,11 +78,10 @@ class ActorCritic:
         self.state_dim = state_dim
 
     def take_action(self, state):
-        state = self.state_one_hot(np.array(state)).to(self.device)
+        state = self.state_one_hot(np.array(state))
         probs = self.actor(state)
-        action_dist = torch.distributions.Categorical(probs)
-        action = action_dist.sample()
-        return action.item()
+        action = torch.multinomial(probs, 1).item()
+        return action
     
     def state_one_hot(self, state):
         if state.size == 1:
@@ -121,7 +121,7 @@ class ActorCritic:
         
     def best_action(self, state):  # 用于打印策略
         state = self.state_one_hot(np.array(state)).to(self.device)
-        q = self.policy_net(state)
+        q = self.actor(state)
         q_max = q.max()
         a = [0 for _ in range(4)]
         for i in range(4):
@@ -145,18 +145,18 @@ def print_agent(agent, env, action_meaning, disaster=[], end=[]):
 # 训练和测试
 if __name__ == "__main__":
     np.random.seed(0)
-    torch.manual_seed(0)
+    torch.manual_seed(6)
     ncol = 12
     nrow = 4
     env = CliffWalkingEnv(ncol, nrow)
     actor_lr = 0.01
     critic_lr = 0.01
     num_episodes = 1000
-    hidden_dim = 128
-    gamma = 0.8
+    hidden_dim = 64
+    gamma = 0.99
     state_dim = ncol * nrow
     action_dim = 4
-    device = torch.device("cuda") if torch.cuda.is_available() else torch.device(
+    device = torch.device("cpu") if torch.cuda.is_available() else torch.device(
         "cpu")
     agent = ActorCritic(state_dim, hidden_dim, action_dim, actor_lr, critic_lr,
                     gamma, device)
